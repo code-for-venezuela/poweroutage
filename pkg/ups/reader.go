@@ -3,6 +3,7 @@ package ups
 import (
 	"github.com/cockroachdb/errors"
 	"github.com/d2r2/go-i2c"
+	"github.com/d2r2/go-logger"
 )
 
 const (
@@ -82,9 +83,14 @@ type UPSManager struct {
 	powerLSB   float64
 }
 
-func NewManager(bus *i2c.I2C) *UPSManager {
+func NewManager() *UPSManager {
+	logger.ChangePackageLogLevel("i2c", logger.WarnLevel)
+	i2c, err := i2c.NewI2C(0x43, 1)
+	if err != nil {
+		panic("unable to initialize I2C reader")
+	}
 	ups := &UPSManager{
-		bus: bus,
+		bus: i2c,
 	}
 
 	ups.calValue = 0
@@ -93,6 +99,10 @@ func NewManager(bus *i2c.I2C) *UPSManager {
 	ups.SetCalibration16V5A()
 
 	return ups
+}
+
+func (um *UPSManager) Close() error {
+	return um.bus.Close()
 }
 
 func (um *UPSManager) Read(address uint8) (uint16, error) {
