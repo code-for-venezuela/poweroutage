@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
 )
 
 type State int
@@ -22,21 +25,25 @@ type OutageEvent struct {
 	StartTime  time.Time
 	EndTime    time.Time
 	LocationID string
+	ID         string
 }
 
 type OutageRecorder interface {
 	StartIncident() (*OutageEvent, error)
 	FinishIncident() error
 	GetMostRecentEvent() (*OutageEvent, error)
+	GetFinishedEvents() ([]string, [][]byte, error)
+	DeleteEventFile(eventFile string) error
 }
 
 type fileSystemRecorder struct {
 	locationID string
 	eventsDir  string
+	finishDir  string
 }
 
-func NewFileSystemRecorder(locationID string, eventsDir string) (OutageRecorder, error) {
-	r := &fileSystemRecorder{locationID: locationID, eventsDir: eventsDir}
+func NewFileSystemRecorder(locationID string, eventsDir string, finishDir string) (OutageRecorder, error) {
+	r := &fileSystemRecorder{locationID: locationID, eventsDir: eventsDir, finishDir: finishDir}
 	if err := r.createEventsDirIfNotExists(); err != nil {
 		return nil, fmt.Errorf("error creating events directory: %v", err)
 	}
@@ -48,6 +55,7 @@ func (r *fileSystemRecorder) StartIncident() (*OutageEvent, error) {
 		Status:     Ongoing,
 		StartTime:  time.Now(),
 		LocationID: r.locationID,
+		ID:         uuid.New().String(),
 	}
 	err := r.writeEventToFile(event)
 	if err != nil {
@@ -83,16 +91,15 @@ func (r *fileSystemRecorder) FinishIncident() error {
 func (r *fileSystemRecorder) moveEventFileToFinishedDir(event *OutageEvent) error {
 	eventFilename := getEventFilename(event.LocationID, event.StartTime)
 	eventFilePath := filepath.Join(r.eventsDir, eventFilename)
-	finishedDir := filepath.Join(r.eventsDir, "finished-events")
 
-	if _, err := os.Stat(finishedDir); os.IsNotExist(err) {
-		if err := os.Mkdir(finishedDir, 0755); err != nil {
+	if _, err := os.Stat(r.finishDir); os.IsNotExist(err) {
+		if err := os.Mkdir(r.finishDir, 0755); err != nil {
 			return err
 		}
 	}
 
-	finishedFilename := getEventFilename(event.LocationID, event.StartTime) + ".finished"
-	finishedFilePath := filepath.Join(finishedDir, finishedFilename)
+	finishedFilename := getEventFilename(event.LocationID, event.StartTime)
+	finishedFilePath := filepath.Join(r.finishDir, finishedFilename)
 
 	if err := os.Rename(eventFilePath, finishedFilePath); err != nil {
 		return err
@@ -114,34 +121,74 @@ func (r *fileSystemRecorder) createEventsDirIfNotExists() error {
 	return nil
 }
 
-func (r *fileSystemRecorder) getEventsDir() (string, error) {
-	absPath, err := filepath.Abs(r.eventsDir)
+func (r *fileSystemRecorder) getEventsDir(dir string) (string, error) {
+	absPath, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	return absPath, nil
 }
 
-func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
-	dir, err := r.getEventsDir()
+func (r *fileSystemRecorder) GetFinishedEvents() ([]string, [][]byte, error) {
+	dir, err := r.getEventsDir(r.finishDir)
 	if err != nil {
-		return &OutageEvent{}, fmt.Errorf("error getting events directory: %v", err)
+		return nil, nil, fmt.Errorf("error getting events directory: %v", err)
 	}
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return &OutageEvent{}, fmt.Errorf("error reading events directory: %v", err)
+		return nil, nil, fmt.Errorf("error reading events directory: %v", err)
+	}
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "error reading finished events")
+	}
+
+	events := make([][]byte, len(files))
+	fileNames := make([]string, len(files))
+	for i, file := range files {
+		eventBytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
+		if err != nil {
+			return nil, nil, fmt.Errorf("error reading event file: %v", err)
+		}
+		events[i] = eventBytes
+		fileNames[i] = file.Name()
+	}
+
+	return fileNames, events, nil
+}
+
+func (r *fileSystemRecorder) DeleteEventFile(eventFile string) error {
+	dir, err := r.getEventsDir(r.finishDir)
+	if err != nil {
+		return fmt.Errorf("error getting events directory: %v", err)
+	}
+
+	err = os.Remove(filepath.Join(dir, eventFile))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
+	dir, err := r.getEventsDir(r.eventsDir)
+	if err != nil {
+		return nil, fmt.Errorf("error getting events directory: %v", err)
+	}
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("error reading events directory: %v", err)
 	}
 	if len(files) != 1 {
-		return &OutageEvent{}, fmt.Errorf("no outage events recorded")
+		return nil, fmt.Errorf("no outage events recorded")
 	}
 	file := files[0]
 	eventBytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
 	if err != nil {
-		return &OutageEvent{}, fmt.Errorf("error reading event file: %v", err)
+		return nil, fmt.Errorf("error reading event file: %v", err)
 	}
 	var event OutageEvent
 	if err := json.Unmarshal(eventBytes, &event); err != nil {
-		return &OutageEvent{}, fmt.Errorf("error unmarshaling event file: %v", err)
+		return nil, fmt.Errorf("error unmarshaling event file: %v", err)
 	}
 	return &event, nil
 }
@@ -152,7 +199,7 @@ func (r *fileSystemRecorder) writeEventToFile(event OutageEvent) error {
 		return fmt.Errorf("error marshaling event to JSON: %v", err)
 	}
 	filename := fmt.Sprintf("%v_%v.json", event.LocationID, event.StartTime.Unix())
-	dir, err := r.getEventsDir()
+	dir, err := r.getEventsDir(r.eventsDir)
 	if err != nil {
 		return fmt.Errorf("error getting events directory: %v", err)
 	}

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"strings"
 	"time"
 
+	"github.com/code-for-venezuela/poweroutage/pkg/eventsyncer"
 	"github.com/code-for-venezuela/poweroutage/pkg/store"
 	"github.com/code-for-venezuela/poweroutage/pkg/ups"
 	log "github.com/sirupsen/logrus"
@@ -10,24 +13,35 @@ import (
 
 func main() {
 	upsManager := ups.NewManager()
+	syncManager := eventsyncer.NewEventSyncer(10 * time.Second)
+
+	defer syncManager.Close()
 	defer upsManager.Close()
-	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "/home/pi/events")
+
+	go syncManager.Run(context.Background())
+
+	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "/home/pi/events", "/home/pi/finished-events")
 	if err != nil {
 		panic("can't initialize new filesystem recorder")
 	}
 
 	var event *store.OutageEvent
-
 	event, err = eventsRecorder.GetMostRecentEvent()
-	if err != nil {
+
+	if err == nil {
 		log.Infof("warning, there is already an ongoing event. It started at: %v", event.StartTime)
 	}
+
+	if err != nil && !strings.Contains(err.Error(), "no outage events recorded") {
+		log.Fatalf("unexpected error reading most recent evet: %v", err)
+	}
+
 	mainLoop(upsManager, event, eventsRecorder)
 	log.Infof("Program is exiting")
 }
 
 func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecorder store.OutageRecorder) {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -39,25 +53,29 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 				log.Fatalf("unexpected error reading current: %v", err)
 			}
 			if current < 0 {
-				log.Infof("Power is not available. Recording event")
-				if event != nil {
+				log.Infof("Power is not available. This is the remaining battery: %.1f%%", percentage)
+				if event == nil {
+					log.Infof("There is no ongoing incident. Starting a new one.")
 					newEvent, err := eventsRecorder.StartIncident()
 					if err != nil {
 						log.Fatalf("error starting new event: %v", err)
 					}
 					event = newEvent
 				}
-
 				if percentage < 10 {
 					log.Warningf("Percentage is really low. Going to exit")
 					return
 				}
 				continue
 			}
-			log.Infof("Power is available. This is the remaining battery: %.1f%", percentage)
+			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
 			if event != nil {
 				log.Infof("Power outage ended. Recording event")
-				eventsRecorder.FinishIncident()
+				err := eventsRecorder.FinishIncident()
+				if err != nil {
+					log.Fatalf("unexpected error finishing incident: %v", err)
+				}
+				event = nil
 			}
 		}
 	}
