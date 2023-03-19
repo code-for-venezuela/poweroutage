@@ -12,12 +12,18 @@ import (
 
 type EventSyncer struct {
 	recorder  store.OutageRecorder
-	publisher store.AngosturaUploader
+	publisher *store.AngosturaUploader
 	t         *time.Ticker
 }
 
-func NewEventSyncer(interval time.Duration) *EventSyncer {
-	es := &EventSyncer{}
+func NewEventSyncer(
+	interval time.Duration,
+	recorder store.OutageRecorder,
+	publisher *store.AngosturaUploader) *EventSyncer {
+	es := &EventSyncer{recorder: recorder, publisher: publisher}
+	if recorder == nil || publisher == nil {
+		log.Fatalf("can't start an event syncer without a recorder and publisher. Got nil")
+	}
 	es.t = time.NewTicker(interval)
 	return es
 }
@@ -43,13 +49,13 @@ func (es *EventSyncer) Run(ctx context.Context) error {
 				err := es.publisher.Publish(event)
 				if err != nil {
 					log.Warnf("Could not publish event: %v. Will retry later", event)
+					continue
 				}
 				err = es.recorder.DeleteEventFile(fileName[i])
 				if err != nil {
 					log.Warnf("Could not publish event: %v. Will retry later", event)
 				}
 			}
-
 		}
 	}
 }

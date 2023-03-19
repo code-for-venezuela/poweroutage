@@ -13,17 +13,19 @@ import (
 
 func main() {
 	upsManager := ups.NewManager()
-	syncManager := eventsyncer.NewEventSyncer(10 * time.Second)
 
-	defer syncManager.Close()
 	defer upsManager.Close()
-
-	go syncManager.Run(context.Background())
 
 	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "/home/pi/events", "/home/pi/finished-events")
 	if err != nil {
 		panic("can't initialize new filesystem recorder")
 	}
+
+	uploader := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
+
+	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, uploader)
+	defer syncManager.Close()
+	go syncManager.Run(context.Background())
 
 	var event *store.OutageEvent
 	event, err = eventsRecorder.GetMostRecentEvent()
@@ -41,7 +43,7 @@ func main() {
 }
 
 func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecorder store.OutageRecorder) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
