@@ -8,6 +8,7 @@ import (
 	"github.com/code-for-venezuela/poweroutage/pkg/eventsyncer"
 	"github.com/code-for-venezuela/poweroutage/pkg/store"
 	"github.com/code-for-venezuela/poweroutage/pkg/ups"
+	"github.com/code-for-venezuela/poweroutage/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -45,6 +46,8 @@ func main() {
 func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecorder store.OutageRecorder) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
+	statsd := util.GetProvider()
+	baseTags := []string{"state:dtocapital", "city:caracas", "municipio:sucre", "parroquia:petare", "id:hawking"}
 	for {
 		select {
 		case <-ticker.C:
@@ -54,8 +57,21 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 			if err != nil {
 				log.Fatalf("unexpected error reading current: %v", err)
 			}
+
+			statsd.Gauge(
+				"powermonitor.batterylevel",
+				float64(percentage),
+				baseTags,
+				1,
+			)
 			if current < 0 {
 				log.Infof("Power is not available. This is the remaining battery: %.1f%%", percentage)
+				statsd.Gauge(
+					"powermonitor.outage",
+					1,
+					baseTags,
+					1,
+				)
 				if event == nil {
 					log.Infof("There is no ongoing incident. Starting a new one.")
 					newEvent, err := eventsRecorder.StartIncident()
@@ -71,6 +87,12 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 				continue
 			}
 			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
+			statsd.Gauge(
+				"powermonitor.outage",
+				0,
+				baseTags,
+				1,
+			)
 			if event != nil {
 				log.Infof("Power outage ended. Recording event")
 				err := eventsRecorder.FinishIncident()
