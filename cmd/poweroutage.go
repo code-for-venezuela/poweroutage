@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	log.Infof("starting power outage monitor")
 	upsManager := ups.NewManager()
 
 	defer upsManager.Close()
@@ -47,7 +48,7 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 	statsd := util.GetProvider()
-	baseTags := []string{"state:dtocapital", "city:caracas", "municipio:sucre", "parroquia:petare", "id:hawking"}
+	baseTags := []string{"state:distrito-capital", "city:caracas", "municipality:sucre", "parrish:petare", "monitor-id:device-hawking"}
 	for {
 		select {
 		case <-ticker.C:
@@ -68,7 +69,7 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 				log.Infof("Power is not available. This is the remaining battery: %.1f%%", percentage)
 				statsd.Gauge(
 					"powermonitor.outage",
-					1,
+					0,
 					baseTags,
 					1,
 				)
@@ -89,7 +90,7 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
 			statsd.Gauge(
 				"powermonitor.outage",
-				0,
+				1,
 				baseTags,
 				1,
 			)
