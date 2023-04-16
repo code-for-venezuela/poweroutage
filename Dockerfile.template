@@ -3,6 +3,7 @@ FROM balenalib/%%BALENA_MACHINE_NAME%%-debian-golang:1.17-bullseye-build as buil
 WORKDIR /go/src/c4v/monitor
 
 COPY pkg/ pkg/
+COPY cmd/ cmd/
 COPY go.mod go.mod
 COPY go.sum go.sum
 COPY Makefile Makefile

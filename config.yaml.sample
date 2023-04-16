@@ -1,8 +1,8 @@
 pusher:
-  app_id: "xxx"
-  key: "xxx"
-  secret: "xxx"
-  cluster: "xxx"
+  app_id: ${PUSHER_APP_ID}
+  key: ${PUSHER_KEY}
+  secret: ${PUSHER_SECRET}
+  cluster: ${PUSHER_CLUSTER} 
   secure: true
 
 monitor-config:
