@@ -6,10 +6,10 @@ COPY pkg/ pkg/
 COPY go.mod go.mod
 COPY go.sum go.sum
 COPY Makefile Makefile
-COPY config.yml.sample /etc/c4v/poweroutage/config.yml
+COPY config.yaml.sample /etc/c4v/poweroutage/config.yaml
 
 RUN make
-RUN modprobe i2c-dev 
+RUN modprobe i2c-dev
 
 FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 
