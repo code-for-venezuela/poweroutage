@@ -19,4 +19,7 @@ WORKDIR /go/src/c4v/monitor
 
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 
+RUN pwd
+RUN ls
+
 CMD modprobe i2c-dev && ./poweroutage
