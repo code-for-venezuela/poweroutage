@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,11 +11,39 @@ import (
 	"github.com/code-for-venezuela/poweroutage/pkg/store"
 	"github.com/code-for-venezuela/poweroutage/pkg/ups"
 	"github.com/code-for-venezuela/poweroutage/pkg/util"
+	"github.com/spf13/viper"
+
+	"github.com/pusher/pusher-http-go/v5"
+
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log.Infof("starting power outage monitor")
+
+	// Parse command line arguments
+	flag.Parse()
+	config := loadConfig()
+
+	// Check required flags
+	if config.Monitor.State == "" ||
+		config.Monitor.City == "" ||
+		config.Monitor.Municipality == "" ||
+		config.Monitor.Parish == "" ||
+		config.Monitor.MonitorID == "" ||
+		config.Monitor.Lat == 0 ||
+		config.Monitor.Long == 0 {
+		fmt.Println("state, city, municipality, parish, and monitor-id are required flags")
+		flag.Usage()
+		return
+	}
+
+	log.Infof("starting power outage monitor for %s, %s, %s, %s (monitor ID: %s)",
+		config.Monitor.State,
+		config.Monitor.City,
+		config.Monitor.Municipality,
+		config.Monitor.Parish,
+		config.Monitor.MonitorID)
+
 	upsManager := ups.NewManager()
 
 	defer upsManager.Close()
@@ -40,15 +70,44 @@ func main() {
 		log.Fatalf("unexpected error reading most recent evet: %v", err)
 	}
 
-	mainLoop(upsManager, event, eventsRecorder)
+	mainLoop(upsManager, event, eventsRecorder, config)
 	log.Infof("Program is exiting")
 }
 
-func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecorder store.OutageRecorder) {
-	ticker := time.NewTicker(1 * time.Minute)
+type DeviceEvent struct {
+	DeviceID  string    `json:"device-id"`
+	Latitude  float64   `json:"lat"`
+	Longitude float64   `json:"long"`
+	State     string    `json:"state"`
+	EventTime time.Time `json:"event_time"`
+}
+
+func mainLoop(upsManager *ups.UPSManager,
+	event *store.OutageEvent,
+	eventsRecorder store.OutageRecorder,
+	config Config) {
+	pusherConfig := config.Pusher
+	deviceConfig := config.Monitor
+
+	ticker := time.NewTicker(deviceConfig.TickerDuration)
 	defer ticker.Stop()
 	statsd := util.GetProvider()
-	baseTags := []string{"state:distrito-capital", "city:caracas", "municipality:sucre", "parrish:petare", "monitor-id:device-hawking"}
+	baseTags := []string{
+		"state:" + deviceConfig.State,
+		"city:" + deviceConfig.City,
+		"municipality:" + deviceConfig.Municipality,
+		"parish:" + deviceConfig.Parish,
+		"monitor-id:" + deviceConfig.MonitorID,
+	}
+
+	pusherClient := pusher.Client{
+		AppID:   pusherConfig.AppID,
+		Key:     pusherConfig.Key,
+		Secret:  pusherConfig.Secret,
+		Cluster: pusherConfig.Cluster,
+		Secure:  pusherConfig.Secure,
+	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -102,6 +161,19 @@ func mainLoop(upsManager *ups.UPSManager, event *store.OutageEvent, eventsRecord
 				}
 				event = nil
 			}
+
+			pusherEvent := DeviceEvent{
+				DeviceID:  deviceConfig.MonitorID,
+				Latitude:  deviceConfig.Lat,
+				Longitude: deviceConfig.Long,
+				State:     "online",
+				EventTime: time.Now(),
+			}
+
+			err = pusherClient.Trigger("poweroutages", "device-status", pusherEvent)
+			if err != nil {
+				log.Infof("failed to publish to pusher")
+			}
 		}
 	}
 }
@@ -119,4 +191,45 @@ func powerPercentage(upsManager *ups.UPSManager) float32 {
 		p = 0
 	}
 	return p
+}
+
+type Config struct {
+	Pusher  pusherConfig  `mapstructure:"pusher"`
+	Monitor MonitorConfig `mapstructure:"monitor-config"`
+}
+
+type pusherConfig struct {
+	AppID   string `mapstructure:"app_id"`
+	Key     string `mapstructure:"key"`
+	Secret  string `mapstructure:"secret"`
+	Cluster string `mapstructure:"cluster"`
+	Secure  bool   `mapstructure:"secure"`
+}
+
+type MonitorConfig struct {
+	State          string        `mapstructure:"state"`
+	City           string        `mapstructure:"city"`
+	Municipality   string        `mapstructure:"municipality"`
+	Parish         string        `mapstructure:"parish"`
+	MonitorID      string        `mapstructure:"monitor-id"`
+	TickerDuration time.Duration `mapstructure:"ticker"`
+	Lat            float64       `mapstructure:"lat"`
+	Long           float64       `mapstructure:"long"`
+}
+
+func loadConfig() Config {
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".", "/etc/c4v-poweroutage/")
+	viper.SetConfigType("yaml")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("failed to read config file: %v", err)
+	}
+
+	var config Config
+	if err := viper.Unmarshal(&config); err != nil {
+		log.Fatalf("failed to unmarshal config: %v", err)
+	}
+
+	return config
 }
