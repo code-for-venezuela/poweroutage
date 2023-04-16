@@ -13,10 +13,8 @@ RUN make
 
 FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 
-RUN modprobe i2c-dev
-
 WORKDIR /go/src/c4v/monitor
 
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 
-CMD [ "./poweroutage" ]
+CMD ["modprobe i2c-dev", "./poweroutage" ]
