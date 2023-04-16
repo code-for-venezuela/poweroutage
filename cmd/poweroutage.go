@@ -220,7 +220,7 @@ type MonitorConfig struct {
 func loadConfig() Config {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath("/etc/c4v-poweroutage/")
+	viper.AddConfigPath("/etc/c4v/poweroutage/")
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
