@@ -10,9 +10,10 @@ COPY Makefile Makefile
 COPY config.yaml.sample /etc/c4v/poweroutage/config.yaml
 
 RUN make
-RUN modprobe i2c-dev
 
 FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
+
+RUN modprobe i2c-dev
 
 WORKDIR /go/src/c4v/monitor
 
