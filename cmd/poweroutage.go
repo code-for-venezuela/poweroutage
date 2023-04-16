@@ -48,7 +48,7 @@ func main() {
 
 	defer upsManager.Close()
 
-	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "/home/pi/events", "/home/pi/finished-events")
+	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "./events", "./finished-events")
 	if err != nil {
 		panic("can't initialize new filesystem recorder")
 	}
