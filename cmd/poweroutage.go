@@ -87,6 +87,8 @@ func mainLoop(upsManager *ups.UPSManager,
 	eventsRecorder store.OutageRecorder,
 	config Config) {
 	pusherConfig := config.Pusher
+	/// let's harcdoce this for now
+	pusherConfig.Secure = true
 	deviceConfig := config.Monitor
 
 	ticker := time.NewTicker(deviceConfig.TickerDuration)
@@ -199,11 +201,11 @@ type Config struct {
 }
 
 type pusherConfig struct {
-	AppID   string `mapstructure:"app_id"`
-	Key     string `mapstructure:"key"`
-	Secret  string `mapstructure:"secret"`
-	Cluster string `mapstructure:"cluster"`
-	Secure  bool   `mapstructure:"secure"`
+	AppID   string `mapstructure:"PUSHER_APP_ID"`
+	Key     string `mapstructure:"PUSHER_KEY"`
+	Secret  string `mapstructure:"PUSHER_SECRET"`
+	Cluster string `mapstructure:"PUSHER_CLUSTER"`
+	Secure  bool   `mapstructure:"PUSHER_SECURE"`
 }
 
 type MonitorConfig struct {
@@ -222,6 +224,7 @@ func loadConfig() Config {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("/etc/c4v/poweroutage/")
 	viper.SetConfigType("yaml")
+	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("failed to read config file: %v", err)
