@@ -1,0 +1,20 @@
+FROM balenalib/%%BALENA_MACHINE_NAME%%-debian-golang:1.17-bullseye-build as build
+
+WORKDIR /go/src/c4v/monitor
+
+COPY pkg/ pkg/
+COPY go.mod go.mod
+COPY go.sum go.sum
+COPY Makefile Makefile
+COPY config.yml.sample /etc/c4v/poweroutage/config.yml
+
+RUN make
+RUN modprobe i2c-dev 
+
+FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
+
+WORKDIR /go/src/c4v/monitor
+
+COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
+
+CMD [ "./poweroutage" ]

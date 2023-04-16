@@ -1,0 +1,21 @@
+name: poweroutage
+type: sw.application
+description: >-
+  Power Outage Monitor
+assets:
+  repository:
+    type: blob.asset
+    data:
+      url: 'https://github.com/code-for-venezuela/poweroutage'
+  logo:
+    type: blob.asset
+    data:
+      url: >-
+        https://raw.githubusercontent.com/balenalabs/balena-sound/master/logo.png
+data:
+  applicationEnvironmentVariables:
+    - MONITOR_CONFIG_CITY:  "New York"
+  defaultDeviceType: raspberry-pi
+  supportedDeviceTypes:
+    - raspberry-pi
+version: 1.0.0
