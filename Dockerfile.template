@@ -15,21 +15,14 @@ RUN make
 
 # -- Start of resin-wifi-connect section -- #
 
-# Set the device type environment variable using Dockerfile templates
-ENV DEVICE_TYPE=%%RESIN_MACHINE_NAME%%
+# -- Wifi connect
+RUN install_packages dnsmasq wireless-tools
 
-# Use apt-get to install dependencies
-RUN apt-get update && apt-get install -yq --no-install-recommends \
-    dnsmasq && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+ARG VERSION="4.4.0"
+RUN curl -Ls "https://github.com/balena-io/wifi-connect/releases/download/v$VERSION/wifi-connect-v$VERSION-linux-%%BALENA_ARCH%%.tar.gz" \
+  | tar -xvz -C  /usr/src/app/
 
-# Install resin-wifi-connect
-RUN curl https://api.github.com/repos/resin-io/resin-wifi-connect/releases/latest -s \
-    | grep -hoP 'browser_download_url": "\K.*%%RESIN_ARCH%%\.tar\.gz' \
-    | xargs -n1 curl -Ls \
-    | tar -xvz -C /usr/src/app/
-
-# -- End of resin-wifi-connect section -- #
+# -- End wify connect -- #
 
 FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 
