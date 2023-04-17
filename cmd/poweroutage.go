@@ -23,6 +23,7 @@ func main() {
 	// Parse command line arguments
 	flag.Parse()
 	config := loadConfig()
+	log.Infof("This is the config: %+v", config)
 
 	// Check required flags
 	if config.State == "" ||
