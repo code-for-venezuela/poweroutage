@@ -18,6 +18,8 @@ RUN make
 # -- Wifi connect
 RUN install_packages dnsmasq wireless-tools
 
+WORKDIR /usr/src/app
+
 ARG VERSION="4.4.0"
 RUN curl -Ls "https://github.com/balena-io/wifi-connect/releases/download/v$VERSION/wifi-connect-v$VERSION-linux-%%BALENA_ARCH%%.tar.gz" \
   | tar -xvz -C  /usr/src/app/
@@ -31,5 +33,6 @@ WORKDIR /go/src/c4v/monitor
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 COPY --from=build /go/src/c4v/monitor/config.env .
 COPY --from=build /go/src/c4v/monitor/start.sh .
+COPY --from=build /usr/src/app/wifi-connect .
 
 CMD ["bash", "start.sh"]
