@@ -9,9 +9,6 @@ export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
 # Is there Internet connectivity via a google ping?
 wget --spider http://google.com 2>&1
 
-# Is there an active WiFi connection?
-iwgetid -r
-
 if [ $? -eq 0 ]; then
     printf 'Skipping WiFi Connect\n'
 else
