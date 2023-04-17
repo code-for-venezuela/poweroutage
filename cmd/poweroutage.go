@@ -49,7 +49,11 @@ func main() {
 
 	defer upsManager.Close()
 
-	eventsRecorder, err := store.NewFileSystemRecorder("ccs-petare-zona-device-1", "./events", "./finished-events")
+	eventsRecorder, err := store.NewFileSystemRecorder(
+		config.MonitorID,
+		config.EventsFolder,
+		config.FinishedEventsFolder)
+
 	if err != nil {
 		panic("can't initialize new filesystem recorder")
 	}
@@ -193,19 +197,21 @@ func powerPercentage(upsManager *ups.UPSManager) float32 {
 }
 
 type Config struct {
-	AppID          string        `mapstructure:"PUSHER_APP_ID"`
-	Key            string        `mapstructure:"PUSHER_APP_KEY"`
-	Secret         string        `mapstructure:"PUSHER_SECRET"`
-	Cluster        string        `mapstructure:"PUSHER_CLUSTER"`
-	Secure         bool          `mapstructure:"PUSHER_SECURE"`
-	State          string        `mapstructure:"STATE"`
-	City           string        `mapstructure:"CITY"`
-	Municipality   string        `mapstructure:"MUNICIPALITY"`
-	Parish         string        `mapstructure:"PARISH"`
-	MonitorID      string        `mapstructure:"ID"`
-	TickerDuration time.Duration `mapstructure:"TICKER"`
-	Lat            float64       `mapstructure:"LAT"`
-	Long           float64       `mapstructure:"LONG"`
+	AppID                string        `mapstructure:"PUSHER_APP_ID"`
+	Key                  string        `mapstructure:"PUSHER_APP_KEY"`
+	Secret               string        `mapstructure:"PUSHER_SECRET"`
+	Cluster              string        `mapstructure:"PUSHER_CLUSTER"`
+	Secure               bool          `mapstructure:"PUSHER_SECURE"`
+	State                string        `mapstructure:"STATE"`
+	City                 string        `mapstructure:"CITY"`
+	Municipality         string        `mapstructure:"MUNICIPALITY"`
+	Parish               string        `mapstructure:"PARISH"`
+	MonitorID            string        `mapstructure:"ID"`
+	TickerDuration       time.Duration `mapstructure:"TICKER"`
+	Lat                  float64       `mapstructure:"LAT"`
+	Long                 float64       `mapstructure:"LONG"`
+	EventsFolder         string        `mapstructure:"EVENTS_FOLDER"`
+	FinishedEventsFolder string        `mapstructure:"FINISHED_EVENTS_FOLDER"`
 }
 
 func loadConfig() Config {
