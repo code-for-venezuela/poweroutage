@@ -7,7 +7,7 @@ COPY cmd/ cmd/
 COPY go.mod go.mod
 COPY go.sum go.sum
 COPY Makefile Makefile
-COPY config.yaml.sample config.yaml
+COPY config.sample.env config.env
 
 RUN apt-get update && apt-get install -y kmod
 

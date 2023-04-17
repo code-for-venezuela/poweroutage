@@ -25,24 +25,24 @@ func main() {
 	config := loadConfig()
 
 	// Check required flags
-	if config.Monitor.State == "" ||
-		config.Monitor.City == "" ||
-		config.Monitor.Municipality == "" ||
-		config.Monitor.Parish == "" ||
-		config.Monitor.MonitorID == "" ||
-		config.Monitor.Lat == 0 ||
-		config.Monitor.Long == 0 {
+	if config.State == "" ||
+		config.City == "" ||
+		config.Municipality == "" ||
+		config.Parish == "" ||
+		config.MonitorID == "" ||
+		config.Lat == 0 ||
+		config.Long == 0 {
 		fmt.Println("state, city, municipality, parish, and monitor-id are required flags")
 		flag.Usage()
 		return
 	}
 
 	log.Infof("starting power outage monitor for %s, %s, %s, %s (monitor ID: %s)",
-		config.Monitor.State,
-		config.Monitor.City,
-		config.Monitor.Municipality,
-		config.Monitor.Parish,
-		config.Monitor.MonitorID)
+		config.State,
+		config.City,
+		config.Municipality,
+		config.Parish,
+		config.MonitorID)
 
 	upsManager := ups.NewManager()
 
@@ -86,28 +86,24 @@ func mainLoop(upsManager *ups.UPSManager,
 	event *store.OutageEvent,
 	eventsRecorder store.OutageRecorder,
 	config Config) {
-	pusherConfig := config.Pusher
-	/// let's harcdoce this for now
-	pusherConfig.Secure = true
-	deviceConfig := config.Monitor
 
-	ticker := time.NewTicker(deviceConfig.TickerDuration)
+	ticker := time.NewTicker(config.TickerDuration)
 	defer ticker.Stop()
 	statsd := util.GetProvider()
 	baseTags := []string{
-		"state:" + deviceConfig.State,
-		"city:" + deviceConfig.City,
-		"municipality:" + deviceConfig.Municipality,
-		"parish:" + deviceConfig.Parish,
-		"monitor-id:" + deviceConfig.MonitorID,
+		"state:" + config.State,
+		"city:" + config.City,
+		"municipality:" + config.Municipality,
+		"parish:" + config.Parish,
+		"monitor-id:" + config.MonitorID,
 	}
 
 	pusherClient := pusher.Client{
-		AppID:   pusherConfig.AppID,
-		Key:     pusherConfig.Key,
-		Secret:  pusherConfig.Secret,
-		Cluster: pusherConfig.Cluster,
-		Secure:  pusherConfig.Secure,
+		AppID:   config.AppID,
+		Key:     config.Key,
+		Secret:  config.Secret,
+		Cluster: config.Cluster,
+		Secure:  config.Secure,
 	}
 
 	for {
@@ -165,9 +161,9 @@ func mainLoop(upsManager *ups.UPSManager,
 			}
 
 			pusherEvent := DeviceEvent{
-				DeviceID:  deviceConfig.MonitorID,
-				Latitude:  deviceConfig.Lat,
-				Longitude: deviceConfig.Long,
+				DeviceID:  config.MonitorID,
+				Latitude:  config.Lat,
+				Longitude: config.Long,
 				State:     "online",
 				EventTime: time.Now(),
 			}
@@ -196,34 +192,27 @@ func powerPercentage(upsManager *ups.UPSManager) float32 {
 }
 
 type Config struct {
-	Pusher  pusherConfig  `mapstructure:"pusher"`
-	Monitor MonitorConfig `mapstructure:"monitor-config"`
-}
-
-type pusherConfig struct {
-	AppID   string `mapstructure:"PUSHER_APP_ID"`
-	Key     string `mapstructure:"PUSHER_KEY"`
-	Secret  string `mapstructure:"PUSHER_SECRET"`
-	Cluster string `mapstructure:"PUSHER_CLUSTER"`
-	Secure  bool   `mapstructure:"PUSHER_SECURE"`
-}
-
-type MonitorConfig struct {
-	State          string        `mapstructure:"state"`
-	City           string        `mapstructure:"city"`
-	Municipality   string        `mapstructure:"municipality"`
-	Parish         string        `mapstructure:"parish"`
-	MonitorID      string        `mapstructure:"monitor-id"`
-	TickerDuration time.Duration `mapstructure:"ticker"`
-	Lat            float64       `mapstructure:"lat"`
-	Long           float64       `mapstructure:"long"`
+	AppID          string        `mapstructure:"PUSHER_APP_ID"`
+	Key            string        `mapstructure:"PUSHER_APP_KEY"`
+	Secret         string        `mapstructure:"PUSHER_SECRET"`
+	Cluster        string        `mapstructure:"PUSHER_CLUSTER"`
+	Secure         bool          `mapstructure:"PUSHER_SECURE"`
+	State          string        `mapstructure:"STATE"`
+	City           string        `mapstructure:"CITY"`
+	Municipality   string        `mapstructure:"MUNICIPALITY"`
+	Parish         string        `mapstructure:"PARISH"`
+	MonitorID      string        `mapstructure:"ID"`
+	TickerDuration time.Duration `mapstructure:"TICKER"`
+	Lat            float64       `mapstructure:"LAT"`
+	Long           float64       `mapstructure:"LONG"`
 }
 
 func loadConfig() Config {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("/etc/c4v/poweroutage/")
-	viper.SetConfigType("yaml")
+	viper.SetConfigType("env")
+	viper.SetEnvPrefix("monitor")
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
