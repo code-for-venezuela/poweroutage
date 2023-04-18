@@ -23,7 +23,7 @@ FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 
 WORKDIR /usr/src/app
 
-ARG VERSION="4.11.2"
+ARG VERSION="4.11.1"
 RUN curl -Ls "https://github.com/balena-io/wifi-connect/releases/download/v$VERSION/wifi-connect-v$VERSION-linux-%%BALENA_ARCH%%.tar.gz" \
   | tar -xvz -C  /usr/src/app/
 
