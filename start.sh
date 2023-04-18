@@ -7,7 +7,7 @@ export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
 # Choose a condition for running WiFi Connect according to your use case:
 
 # Is there Internet connectivity via a google ping?
-wget --spider http://google.com 2>&1
+iwgetid -r
 
 if [ $? -eq 0 ]; then
     printf 'Skipping WiFi Connect\n'

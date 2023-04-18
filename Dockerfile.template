@@ -19,7 +19,7 @@ FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 # -- Start of resin-wifi-connect section -- #
 
 # -- Wifi connect
-RUN install_packages dnsmasq wireless-tools wget
+RUN install_packages dnsmasq wireless-tools
 
 WORKDIR /usr/src/app
 
@@ -34,6 +34,6 @@ WORKDIR /go/src/c4v/monitor
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 COPY --from=build /go/src/c4v/monitor/config.env .
 COPY --from=build /go/src/c4v/monitor/start.sh .
-COPY --from=build /usr/src/app/wifi-connect .
+COPY /usr/src/app/wifi-connect .
 
 CMD ["bash", "start.sh"]
