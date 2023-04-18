@@ -36,6 +36,6 @@ WORKDIR /go/src/c4v/monitor
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 COPY --from=build /go/src/c4v/monitor/config.env .
 COPY --from=build /go/src/c4v/monitor/start.sh .
-COPY --from=build /usr/src/app/wifi-connect .
+COPY --from=build /usr/src/app/ /usr/src/app/
 
 CMD ["bash", "start.sh"]
