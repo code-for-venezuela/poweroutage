@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y kmod dnsmasq wireless-tools
 
 RUN make
 
-FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
 
 # -- Start of resin-wifi-connect section -- #
 
@@ -29,10 +28,14 @@ RUN curl -Ls "https://github.com/balena-io/wifi-connect/releases/download/v$VERS
 
 # -- End wify connect -- #
 
+
+FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bullseye-run
+
 WORKDIR /go/src/c4v/monitor
 
 COPY --from=build /go/src/c4v/monitor/bin/poweroutage .
 COPY --from=build /go/src/c4v/monitor/config.env .
 COPY --from=build /go/src/c4v/monitor/start.sh .
+COPY --from=build /usr/src/app/wifi-conenct .
 
 CMD ["bash", "start.sh"]
