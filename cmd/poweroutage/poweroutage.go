@@ -129,7 +129,7 @@ func mainLoop(upsManager *ups.UPSManager,
 			)
 			if current < 0 {
 				log.Infof(
-					"Power is not available. This is the remaining battery: %.1f%%, current: %.1f%%",
+					"Power is not available. This is the remaining battery: %.1f%%, current: %.1f",
 					percentage,
 					current,
 				)
