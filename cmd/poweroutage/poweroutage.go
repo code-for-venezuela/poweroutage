@@ -184,7 +184,7 @@ func mainLoop(upsManager *ups.UPSManager,
 
 			err = pusherClient.Trigger("poweroutages", "device-status", pusherEvent)
 			if err != nil {
-				log.Infof("failed to publish to pusher")
+				log.Infof("failed to publish to pusher: %v", err)
 			}
 		}
 	}
