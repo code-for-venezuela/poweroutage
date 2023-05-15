@@ -158,7 +158,7 @@ func mainLoop(upsManager *ups.UPSManager,
 				}
 				continue
 			}
-			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
+			log.Infof("Power is available, orlando says. This is the remaining battery: %.1f%%", percentage)
 			statsd.Gauge(
 				"powermonitor.outage",
 				1,
