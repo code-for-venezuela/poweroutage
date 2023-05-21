@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
@@ -63,9 +64,9 @@ func main() {
 		panic("can't initialize new filesystem recorder")
 	}
 
-	uploader := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
+	angosturaPublisher := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
 
-	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, uploader)
+	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, angosturaPublisher)
 	defer syncManager.Close()
 	go syncManager.Run(context.Background())
 
@@ -80,7 +81,7 @@ func main() {
 		log.Fatalf("unexpected error reading most recent evet: %v", err)
 	}
 
-	mainLoop(upsManager, event, eventsRecorder, config)
+	mainLoop(upsManager, event, eventsRecorder, angosturaPublisher, config)
 	log.Infof("Program is exiting")
 }
 
@@ -95,6 +96,7 @@ type DeviceEvent struct {
 func mainLoop(upsManager *ups.UPSManager,
 	event *store.OutageEvent,
 	eventsRecorder store.OutageRecorder,
+	angosturaPublisher *store.AngosturaUploader,
 	config Config) {
 
 	ticker := time.NewTicker(config.TickerDuration)
@@ -117,6 +119,8 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 
 	for {
+		// Let's initialize a probe timer to send keep alives to angostura
+		lastProbeTime := time.Now()
 		select {
 		case <-ticker.C:
 
@@ -158,7 +162,13 @@ func mainLoop(upsManager *ups.UPSManager,
 				}
 				continue
 			}
-			log.Infof("Power is available, orlando says. This is the remaining battery: %.1f%%", percentage)
+			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
+			if time.Since(lastProbeTime) >= 4*time.Hour {
+				newProbeTime := publishProbe(angosturaPublisher, config.MonitorID)
+				if !newProbeTime.IsZero() {
+					lastProbeTime = newProbeTime
+				}
+			}
 			statsd.Gauge(
 				"powermonitor.outage",
 				1,
@@ -188,6 +198,25 @@ func mainLoop(upsManager *ups.UPSManager,
 			}
 		}
 	}
+}
+
+func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string) time.Time {
+	event := struct {
+		DeviceID string `json:"device_id"`
+	}{
+		DeviceID: deviceId,
+	}
+	// Serialize the struct to JSON
+	jsonData, err := json.Marshal(event)
+	if err != nil {
+		panic("Failed to serialized event json")
+	}
+	err = angosturaPublisher.Publish("power_outage_probe", jsonData)
+	if err != nil {
+		log.Errorf("failed to publish probe event to angostura: %v", err)
+		return time.Time{}
+	}
+	return time.Now()
 }
 
 func powerPercentage(upsManager *ups.UPSManager) float32 {
