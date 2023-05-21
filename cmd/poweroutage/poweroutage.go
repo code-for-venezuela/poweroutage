@@ -216,6 +216,7 @@ func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string) 
 		log.Errorf("failed to publish probe event to angostura: %v", err)
 		return time.Time{}
 	}
+	log.Infof("successfully published probe event to angostura")
 	return time.Now()
 }
 
