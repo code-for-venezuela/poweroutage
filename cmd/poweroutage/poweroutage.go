@@ -117,14 +117,16 @@ func mainLoop(upsManager *ups.UPSManager,
 		Cluster: config.Cluster,
 		Secure:  config.Secure,
 	}
+	probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
+	lastProbeTime := time.Now()
+	if probeTime.IsZero() {
+		log.Errorf("failed to published to angostura on start")
+	} else {
+		lastProbeTime = probeTime
+	}
 
 	for {
 		// Let's initialize a probe timer to send keep alives to angostura
-		probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
-		lastProbeTime := time.Now()
-		if !probeTime.IsZero() {
-			C
-		}
 		select {
 		case <-ticker.C:
 
