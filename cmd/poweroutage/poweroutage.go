@@ -120,7 +120,11 @@ func mainLoop(upsManager *ups.UPSManager,
 
 	for {
 		// Let's initialize a probe timer to send keep alives to angostura
+		probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 		lastProbeTime := time.Now()
+		if !probeTime.IsZero() {
+			lastProbeTime = probeTime
+		}
 		select {
 		case <-ticker.C:
 
@@ -164,7 +168,7 @@ func mainLoop(upsManager *ups.UPSManager,
 			}
 			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
 			if time.Since(lastProbeTime) >= 4*time.Hour {
-				newProbeTime := publishProbe(angosturaPublisher, config.MonitorID)
+				newProbeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 				if !newProbeTime.IsZero() {
 					lastProbeTime = newProbeTime
 				}
@@ -200,11 +204,13 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 }
 
-func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string) time.Time {
+func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string, restart bool) time.Time {
 	event := struct {
 		DeviceID string `json:"device_id"`
+		Restart  bool   `json:"restart`
 	}{
 		DeviceID: deviceId,
+		Restart:  restart,
 	}
 	// Serialize the struct to JSON
 	jsonData, err := json.Marshal(event)
