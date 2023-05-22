@@ -123,7 +123,7 @@ func mainLoop(upsManager *ups.UPSManager,
 		probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 		lastProbeTime := time.Now()
 		if !probeTime.IsZero() {
-			lastProbeTime = probeTime
+			C
 		}
 		select {
 		case <-ticker.C:
@@ -207,7 +207,7 @@ func mainLoop(upsManager *ups.UPSManager,
 func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string, restart bool) time.Time {
 	event := struct {
 		DeviceID string `json:"device_id"`
-		Restart  bool   `json:"restart`
+		Restart  bool   `json:"restart"`
 	}{
 		DeviceID: deviceId,
 		Restart:  restart,
