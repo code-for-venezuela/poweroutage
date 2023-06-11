@@ -20,12 +20,28 @@ const (
 	Resolved
 )
 
+var stateStrings = [...]string{
+	"unknown",
+	"ongoing",
+	"resolved",
+}
+
+func (s State) ToString() string {
+	if int(s) < 0 || int(s) >= len(stateStrings) {
+		return "Unknown"
+	}
+	return stateStrings[s]
+}
+func (s State) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.ToString() + `"`), nil
+}
+
 type OutageEvent struct {
-	Status     State
-	StartTime  time.Time
-	EndTime    time.Time
-	LocationID string
-	ID         string
+	Status    State     `json:"status"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	MonitorId string    `json:"monitor_id"`
+	ID        string    `json:"id"`
 }
 
 type OutageRecorder interface {
@@ -52,10 +68,10 @@ func NewFileSystemRecorder(locationID string, eventsDir string, finishDir string
 
 func (r *fileSystemRecorder) StartIncident() (*OutageEvent, error) {
 	event := OutageEvent{
-		Status:     Ongoing,
-		StartTime:  time.Now(),
-		LocationID: r.locationID,
-		ID:         uuid.New().String(),
+		Status:    Ongoing,
+		StartTime: time.Now(),
+		MonitorId: r.locationID,
+		ID:        uuid.New().String(),
 	}
 	err := r.writeEventToFile(event)
 	if err != nil {
@@ -89,7 +105,7 @@ func (r *fileSystemRecorder) FinishIncident() error {
 }
 
 func (r *fileSystemRecorder) moveEventFileToFinishedDir(event *OutageEvent) error {
-	eventFilename := getEventFilename(event.LocationID, event.StartTime)
+	eventFilename := getEventFilename(event.MonitorId, event.StartTime)
 	eventFilePath := filepath.Join(r.eventsDir, eventFilename)
 
 	if _, err := os.Stat(r.finishDir); os.IsNotExist(err) {
@@ -98,7 +114,7 @@ func (r *fileSystemRecorder) moveEventFileToFinishedDir(event *OutageEvent) erro
 		}
 	}
 
-	finishedFilename := getEventFilename(event.LocationID, event.StartTime)
+	finishedFilename := getEventFilename(event.MonitorId, event.StartTime)
 	finishedFilePath := filepath.Join(r.finishDir, finishedFilename)
 
 	if err := os.Rename(eventFilePath, finishedFilePath); err != nil {
@@ -198,7 +214,7 @@ func (r *fileSystemRecorder) writeEventToFile(event OutageEvent) error {
 	if err != nil {
 		return fmt.Errorf("error marshaling event to JSON: %v", err)
 	}
-	filename := fmt.Sprintf("%v_%v.json", event.LocationID, event.StartTime.Unix())
+	filename := fmt.Sprintf("%v_%v.json", event.MonitorId, event.StartTime.Unix())
 	dir, err := r.getEventsDir(r.eventsDir)
 	if err != nil {
 		return fmt.Errorf("error getting events directory: %v", err)

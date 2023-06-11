@@ -162,10 +162,6 @@ func mainLoop(upsManager *ups.UPSManager,
 					}
 					event = newEvent
 				}
-				if percentage < 10 {
-					log.Warningf("Percentage is really low. Going to exit")
-					return
-				}
 				continue
 			}
 			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
