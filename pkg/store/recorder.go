@@ -26,14 +26,30 @@ var stateStrings = [...]string{
 	"resolved",
 }
 
-func (s State) ToString() string {
+func (s State) String() string {
 	if int(s) < 0 || int(s) >= len(stateStrings) {
 		return "Unknown"
 	}
 	return stateStrings[s]
 }
 func (s State) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.ToString() + `"`), nil
+	return []byte(`"` + s.String() + `"`), nil
+}
+
+func (s *State) UnmarshalJSON(data []byte) error {
+	var stateStr string
+	if err := json.Unmarshal(data, &stateStr); err != nil {
+		return err
+	}
+
+	for i, str := range stateStrings {
+		if stateStr == str {
+			*s = State(i)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid State value: %s", stateStr)
 }
 
 type OutageEvent struct {
