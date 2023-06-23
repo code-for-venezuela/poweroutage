@@ -119,6 +119,9 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 	probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 	lastProbeTime := time.Now()
+	// Make sure that we log info the first time, after that only one log entry per hour.
+	// This is to not span the logs.
+	lastLog := time.Now().Add(-2 * time.Hour)
 	if probeTime.IsZero() {
 		log.Errorf("failed to published to angostura on start")
 	} else {
@@ -164,7 +167,11 @@ func mainLoop(upsManager *ups.UPSManager,
 				}
 				continue
 			}
-			log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
+			if time.Since(lastLog) >= 1*time.Hour {
+				log.Infof("Power is available. This is the remaining battery: %.1f%%", percentage)
+				lastLog = time.Now()
+			}
+
 			if time.Since(lastProbeTime) >= 4*time.Hour {
 				newProbeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 				if !newProbeTime.IsZero() {
