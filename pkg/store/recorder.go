@@ -223,11 +223,15 @@ func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
 	var event OutageEvent
 	if err := json.Unmarshal(eventBytes, &event); err != nil {
 		filePath := filepath.Join(dir, file.Name())
-		err := os.Remove(filePath)
-		if err != nil {
-			log.Errorf("Error deleting file: %v", err)
+		deleteFileErr := os.Remove(filePath)
+		if deleteFileErr != nil {
+			log.Errorf("Error deleting bad event file: %v", deleteFileErr)
 		} else {
-			log.Infof("File deleted: %v", filePath)
+			log.Infof(
+				"Deleted event file that had bad schema: %v. This was the event: %v",
+				filePath,
+				string(eventBytes),
+			)
 		}
 		return nil, fmt.Errorf("error unmarshaling event file: %v", err)
 	}
