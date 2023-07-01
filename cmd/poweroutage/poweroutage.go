@@ -78,7 +78,7 @@ func main() {
 	}
 
 	if err != nil && !strings.Contains(err.Error(), "no outage events recorded") {
-		log.Fatalf("unexpected error reading most recent evet: %v", err)
+		log.Fatalf("unexpected error reading most recent event: %v", err)
 	}
 
 	mainLoop(upsManager, event, eventsRecorder, angosturaPublisher, config)

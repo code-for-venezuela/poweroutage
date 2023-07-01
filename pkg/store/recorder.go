@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type State int
@@ -220,6 +222,13 @@ func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
 	}
 	var event OutageEvent
 	if err := json.Unmarshal(eventBytes, &event); err != nil {
+		filePath := filepath.Join(dir, file.Name())
+		err := os.Remove(filePath)
+		if err != nil {
+			log.Errorf("Error deleting file: %v", err)
+		} else {
+			log.Infof("File deleted: %v", filePath)
+		}
 		return nil, fmt.Errorf("error unmarshaling event file: %v", err)
 	}
 	return &event, nil
