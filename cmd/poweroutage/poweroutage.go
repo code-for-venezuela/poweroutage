@@ -14,8 +14,6 @@ import (
 	"github.com/code-for-venezuela/poweroutage/pkg/util"
 	"github.com/spf13/viper"
 
-	"github.com/pusher/pusher-http-go/v5"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -110,13 +108,6 @@ func mainLoop(upsManager *ups.UPSManager,
 		"monitor-id:" + config.MonitorID,
 	}
 
-	pusherClient := pusher.Client{
-		AppID:   config.AppID,
-		Key:     config.Key,
-		Secret:  config.Secret,
-		Cluster: config.Cluster,
-		Secure:  config.Secure,
-	}
 	probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
 	lastProbeTime := time.Now()
 	// Make sure that we log info the first time, after that only one log entry per hour.
@@ -191,19 +182,6 @@ func mainLoop(upsManager *ups.UPSManager,
 					log.Fatalf("unexpected error finishing incident: %v", err)
 				}
 				event = nil
-			}
-
-			pusherEvent := DeviceEvent{
-				DeviceID:  config.MonitorID,
-				Latitude:  config.Lat,
-				Longitude: config.Long,
-				State:     "online",
-				EventTime: time.Now(),
-			}
-
-			err = pusherClient.Trigger("poweroutages", "device-status", pusherEvent)
-			if err != nil {
-				log.Infof("failed to publish to pusher: %v", err)
 			}
 		}
 	}
