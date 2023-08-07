@@ -48,12 +48,12 @@ func (es *EventSyncer) Run(ctx context.Context) error {
 				log.Infof("publishing event: %v", string(event))
 				err := es.publisher.Publish("power_outage_incident", event)
 				if err != nil {
-					log.Warnf("Could not publish event: %v. Will retry later", event)
+					log.Warnf("Could not publish event: %v. Will retry later", string(event))
 					continue
 				}
 				err = es.recorder.DeleteEventFile(fileName[i])
 				if err != nil {
-					log.Warnf("Could not publish event: %v. Will retry later", event)
+					log.Warnf("Could not publish event: %v. Will retry later", string(event))
 				}
 			}
 		}
