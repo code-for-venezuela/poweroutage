@@ -137,11 +137,15 @@ func mainLoop(upsManager *ups.UPSManager,
 				1,
 			)
 			if current < -10 {
-				log.Infof(
-					"Power is not available. This is the remaining battery: %.1f%%, current: %.1f",
-					percentage,
-					current,
-				)
+
+				if time.Since(lastLog) >= 1*time.Hour {
+					log.Infof(
+						"Power is not available. This is the remaining battery: %.1f%%, current: %.1f",
+						percentage,
+						current,
+					)
+					lastLog = time.Now()
+				}
 				statsd.Gauge(
 					"powermonitor.outage",
 					0,
