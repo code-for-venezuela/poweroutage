@@ -58,7 +58,10 @@ func (r *Rebooter) Start(ctx context.Context) error {
 				return
 			case <-ticker.C:
 				if r.shouldRestart() {
-					r.restartApp()
+					err := r.restartApp()
+					if err != nil {
+						log.Errorf("There was an error rebooting device. Will retry again in: %v", r.CheckInterval)
+					}
 				}
 			}
 		}
@@ -116,35 +119,38 @@ func (r *Rebooter) shouldRestart() bool {
 }
 
 // restartApp uses the Balena Supervisor API to restart the application.
-func (r *Rebooter) restartApp() {
+// restartApp attempts to restart the application using the Balena Supervisor API and returns any errors encountered.
+func (r *Rebooter) restartApp() error {
 	supervisorAddress := os.Getenv("BALENA_SUPERVISOR_ADDRESS")
 	apiKey := os.Getenv("BALENA_SUPERVISOR_API_KEY")
 
 	if supervisorAddress == "" || apiKey == "" {
-		log.Errorf("Supervisor address or API key not set.")
-		return
+		return fmt.Errorf("supervisor address or API key not set")
 	}
 
 	requestBody, err := json.Marshal(map[string]bool{"force": true})
 	if err != nil {
-		log.Errorf("Error marshaling request body: %v", err)
-		return
+		return fmt.Errorf("error marshaling request body: %w", err)
 	}
 
 	url := fmt.Sprintf("%s/v1/reboot?apikey=%s", supervisorAddress, apiKey)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 	if err != nil {
-		log.Errorf("Error creating request: %v", err)
-		return
+		return fmt.Errorf("error creating request to balena API: %w", err)
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("Error making request: %v", err)
-		return
+		return fmt.Errorf("error making request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// It's a good practice to check the response status code to ensure the operation was successful.
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("failed to restart app, status code: %d", resp.StatusCode)
+	}
+
 	log.Infof("App restarted successfully.")
+	return nil
 }
