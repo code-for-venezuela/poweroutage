@@ -107,6 +107,7 @@ func (r *Rebooter) shouldRestart() bool {
 		}
 
 		// More than RebootInterval hours have passed, so indicate a restart is needed
+		log.Infof("Last restart was at %s. Going to restart the app", lastRestartTime.Format("2006-01-02 15:04:05"))
 		return true
 	}
 
