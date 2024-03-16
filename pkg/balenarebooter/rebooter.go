@@ -30,16 +30,22 @@ func New(interval, rebootInterval time.Duration, filePath string) *Rebooter {
 	}
 }
 
+// WriteTimestampToFile writes the provided time as a Unix timestamp to the specified file.
+func (r *Rebooter) WriteTimestampToFile(timestamp time.Time) error {
+	currentTimestamp := strconv.FormatInt(timestamp.Unix(), 10)
+	if err := os.WriteFile(r.FilePath, []byte(currentTimestamp), 0644); err != nil {
+		return fmt.Errorf("failed to write the timestamp to the file: %w", err)
+	}
+	return nil
+}
+
 // Start begins the periodic check and restart process.
-// Start begins the periodic check and restart process. It now returns an error if it fails to initialize the restart timestamp file.
 func (r *Rebooter) Start(ctx context.Context) error {
 	var cancelCtx context.Context
 	cancelCtx, r.cancelFunc = context.WithCancel(ctx)
 
 	if _, err := os.Stat(r.FilePath); os.IsNotExist(err) {
-		// File does not exist, so initialize it with the current Unix timestamp
-		currentTimestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		if err := os.WriteFile(r.FilePath, []byte(currentTimestamp), 0644); err != nil {
+		if err := r.WriteTimestampToFile(time.Now()); err != nil {
 			return fmt.Errorf("failed to initialize the timestamp file: %v", err)
 		}
 	} else if err != nil {
@@ -58,8 +64,15 @@ func (r *Rebooter) Start(ctx context.Context) error {
 				return
 			case <-ticker.C:
 				if r.shouldRestart() {
-					err := r.restartApp()
+					lastRestartTime, err := r.GetLastRestartTimestamp()
 					if err != nil {
+						log.Errorf("There was an error rebooting device. Will retry again in: %v", r.CheckInterval)
+						continue
+					}
+					err = r.restartApp()
+					if err != nil {
+						// This is effectively rolling back the last restart
+						r.WriteTimestampToFile(lastRestartTime)
 						log.Errorf("There was an error rebooting device. Will retry again in: %v", r.CheckInterval)
 					}
 				}
@@ -76,21 +89,26 @@ func (r *Rebooter) Stop() {
 	}
 }
 
-// shouldRestart checks the condition for restarting the app.
-func (r *Rebooter) shouldRestart() bool {
+func (r *Rebooter) GetLastRestartTimestamp() (time.Time, error) {
 	data, err := os.ReadFile(r.FilePath)
 	if err != nil {
-		log.Errorf("Error reading file: %v", err)
-		// Consider whether you want to trigger a restart if the file can't be read.
-		// For this example, we assume no restart if there's an error.
-		return false
+		return time.Unix(0, 0), fmt.Errorf("error reading file: %w", err)
 	}
 
 	// Convert the read data to a string and then to an int64 (Unix timestamp)
 	lastRestartTimestamp, err := strconv.ParseInt(string(data), 10, 64)
 	if err != nil {
-		log.Errorf("Error parsing timestamp: %v", err)
-		// If the timestamp is invalid, do not restart.
+		return time.Unix(0, 0), fmt.Errorf("error parsing timestamp: %w", err)
+	}
+
+	return time.Unix(lastRestartTimestamp, 0), nil
+}
+
+// shouldRestart checks the condition for restarting the app.
+func (r *Rebooter) shouldRestart() bool {
+	lastRestartTimestamp, err := r.GetLastRestartTimestamp()
+	if err != nil {
+		log.Errorf("Error reading file: %v", err)
 		return false
 	}
 
