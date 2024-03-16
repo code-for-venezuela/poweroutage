@@ -92,6 +92,10 @@ func main() {
 			config.RebooterRebootInterval,
 			config.RebootStateFile,
 		)
+		err := rebooter.Start(context.Background())
+		if err != nil {
+			log.Panicf("Error initializing rebooter: %v", err)
+		}
 	}
 
 	mainLoop(upsManager, event, eventsRecorder, angosturaPublisher, config)

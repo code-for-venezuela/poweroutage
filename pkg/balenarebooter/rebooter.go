@@ -32,9 +32,20 @@ func New(interval, rebootInterval time.Duration, filePath string) *Rebooter {
 
 // Start begins the periodic check and restart process.
 // Start begins the periodic check and restart process. It now returns an error if it fails to initialize the restart timestamp file.
-func (r *Rebooter) Start(ctx context.Context) {
+func (r *Rebooter) Start(ctx context.Context) error {
 	var cancelCtx context.Context
 	cancelCtx, r.cancelFunc = context.WithCancel(ctx)
+
+	if _, err := os.Stat(r.FilePath); os.IsNotExist(err) {
+		// File does not exist, so initialize it with the current Unix timestamp
+		currentTimestamp := strconv.FormatInt(time.Now().Unix(), 10)
+		if err := os.WriteFile(r.FilePath, []byte(currentTimestamp), 0644); err != nil {
+			return fmt.Errorf("failed to initialize the timestamp file: %v", err)
+		}
+	} else if err != nil {
+		// An error occurred that isn't related to the file's existence
+		return fmt.Errorf("error checking the timestamp file: %v", err)
+	}
 
 	go func() {
 		ticker := time.NewTicker(r.CheckInterval)
