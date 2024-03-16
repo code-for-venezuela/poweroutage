@@ -63,6 +63,7 @@ func (r *Rebooter) Start(ctx context.Context) error {
 			}
 		}
 	}()
+	return nil
 }
 
 // Stop stops the rebooter goroutine.
