@@ -3,7 +3,6 @@ package store
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -168,7 +167,7 @@ func (r *fileSystemRecorder) GetFinishedEvents() ([]string, [][]byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting events directory: %v", err)
 	}
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading events directory: %v", err)
 	}
@@ -179,7 +178,7 @@ func (r *fileSystemRecorder) GetFinishedEvents() ([]string, [][]byte, error) {
 	events := make([][]byte, len(files))
 	fileNames := make([]string, len(files))
 	for i, file := range files {
-		eventBytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
+		eventBytes, err := os.ReadFile(filepath.Join(dir, file.Name()))
 		if err != nil {
 			return nil, nil, fmt.Errorf("error reading event file: %v", err)
 		}
@@ -208,7 +207,7 @@ func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting events directory: %v", err)
 	}
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("error reading events directory: %v", err)
 	}
@@ -216,7 +215,7 @@ func (r *fileSystemRecorder) GetMostRecentEvent() (*OutageEvent, error) {
 		return nil, fmt.Errorf("no outage events recorded")
 	}
 	file := files[0]
-	eventBytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
+	eventBytes, err := os.ReadFile(filepath.Join(dir, file.Name()))
 	if err != nil {
 		return nil, fmt.Errorf("error reading event file: %v", err)
 	}
@@ -248,7 +247,7 @@ func (r *fileSystemRecorder) writeEventToFile(event OutageEvent) error {
 	if err != nil {
 		return fmt.Errorf("error getting events directory: %v", err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, filename), eventBytes, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, filename), eventBytes, 0644); err != nil {
 		return fmt.Errorf("error writing event file: %v", err)
 	}
 	return nil

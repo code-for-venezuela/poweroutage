@@ -229,21 +229,20 @@ func powerPercentage(upsManager *ups.UPSManager) float32 {
 }
 
 type Config struct {
-	AppID                string        `mapstructure:"PUSHER_APP_ID"`
-	Key                  string        `mapstructure:"PUSHER_APP_KEY"`
-	Secret               string        `mapstructure:"PUSHER_SECRET"`
-	Cluster              string        `mapstructure:"PUSHER_CLUSTER"`
-	Secure               bool          `mapstructure:"PUSHER_SECURE"`
-	State                string        `mapstructure:"STATE"`
-	City                 string        `mapstructure:"CITY"`
-	Municipality         string        `mapstructure:"MUNICIPALITY"`
-	Parish               string        `mapstructure:"PARISH"`
-	MonitorID            string        `mapstructure:"ID"`
-	TickerDuration       time.Duration `mapstructure:"TICKER"`
-	Lat                  float64       `mapstructure:"LAT"`
-	Long                 float64       `mapstructure:"LONG"`
-	EventsFolder         string        `mapstructure:"EVENTS_FOLDER"`
-	FinishedEventsFolder string        `mapstructure:"FINISHED_EVENTS_FOLDER"`
+	State                  string        `mapstructure:"STATE"`
+	City                   string        `mapstructure:"CITY"`
+	Municipality           string        `mapstructure:"MUNICIPALITY"`
+	Parish                 string        `mapstructure:"PARISH"`
+	MonitorID              string        `mapstructure:"ID"`
+	TickerDuration         time.Duration `mapstructure:"TICKER"`
+	Lat                    float64       `mapstructure:"LAT"`
+	Long                   float64       `mapstructure:"LONG"`
+	EventsFolder           string        `mapstructure:"EVENTS_FOLDER"`
+	FinishedEventsFolder   string        `mapstructure:"FINISHED_EVENTS_FOLDER"`
+	RebootStateFile        string        `mapstructure:"REBOOT_STATE_FILE"`
+	RebooterEnabled        bool          `mapstructure:"REBOOTER_ENABLED"`
+	RebooterCheckInterval  time.Duration `mapstructure:"REBOOTER_CHECK_INTERVAL"`
+	RebooterRebootInterval time.Duration `mapstructure:"REBOOTER_REBOOT_INTERVAL"`
 }
 
 func loadConfig() Config {
