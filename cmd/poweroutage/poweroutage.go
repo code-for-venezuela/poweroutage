@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	balenarerebooter "github.com/code-for-venezuela/poweroutage/pkg/balenarebooter"
 	"github.com/code-for-venezuela/poweroutage/pkg/eventsyncer"
 	"github.com/code-for-venezuela/poweroutage/pkg/store"
 	"github.com/code-for-venezuela/poweroutage/pkg/ups"
@@ -79,7 +80,24 @@ func main() {
 		log.Fatalf("unexpected error reading most recent event: %v", err)
 	}
 
+	var rebooter *balenarerebooter.Rebooter
+	if config.RebooterEnabled {
+		log.Infof("Rebooter is enabled. Starting with the following config: (checkInterval: %v), (rebootInterval: %v), (statusFile: %v)",
+			config.RebooterCheckInterval,
+			config.RebooterRebootInterval,
+			config.RebootStateFile,
+		)
+		rebooter = balenarerebooter.New(
+			config.RebooterCheckInterval,
+			config.RebooterRebootInterval,
+			config.RebootStateFile,
+		)
+	}
+
 	mainLoop(upsManager, event, eventsRecorder, angosturaPublisher, config)
+	if rebooter != nil {
+		rebooter.Stop()
+	}
 	log.Infof("Program is exiting")
 }
 

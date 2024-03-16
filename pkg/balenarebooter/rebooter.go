@@ -2,6 +2,7 @@ package balenarerebooter
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ type Rebooter struct {
 	CheckInterval  time.Duration
 	RebootInterval time.Duration
 	FilePath       string
+	cancelFunc     context.CancelFunc // Store the cancel function to allow stopping
 }
 
 // New creates a new Restarter instance.
@@ -30,29 +32,33 @@ func New(interval, rebootInterval time.Duration, filePath string) *Rebooter {
 
 // Start begins the periodic check and restart process.
 // Start begins the periodic check and restart process. It now returns an error if it fails to initialize the restart timestamp file.
-func (r *Rebooter) Start() error {
-	// Check if the file exists
-	if _, err := os.Stat(r.FilePath); os.IsNotExist(err) {
-		// File does not exist, so initialize it with the current Unix timestamp
-		currentTimestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		if err := os.WriteFile(r.FilePath, []byte(currentTimestamp), 0644); err != nil {
-			return fmt.Errorf("failed to initialize the timestamp file: %w", err)
+func (r *Rebooter) Start(ctx context.Context) {
+	var cancelCtx context.Context
+	cancelCtx, r.cancelFunc = context.WithCancel(ctx)
+
+	go func() {
+		ticker := time.NewTicker(r.CheckInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-cancelCtx.Done():
+				log.Info("Stopping rebooter")
+				return
+			case <-ticker.C:
+				if r.shouldRestart() {
+					r.restartApp()
+				}
+			}
 		}
-	} else if err != nil {
-		// An error occurred that isn't related to the file's existence
-		return fmt.Errorf("error checking the timestamp file: %w", err)
+	}()
+}
+
+// Stop stops the rebooter goroutine.
+func (r *Rebooter) Stop() {
+	if r.cancelFunc != nil {
+		r.cancelFunc()
 	}
-
-	ticker := time.NewTicker(r.CheckInterval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		if r.shouldRestart() {
-			r.restartApp()
-		}
-	}
-
-	return nil // No error occurred
 }
 
 // shouldRestart checks the condition for restarting the app.
