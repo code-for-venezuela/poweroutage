@@ -106,7 +106,7 @@ func (r *Rebooter) GetLastRestartTimestamp() (time.Time, error) {
 
 // shouldRestart checks the condition for restarting the app.
 func (r *Rebooter) shouldRestart() bool {
-	lastRestartTimestamp, err := r.GetLastRestartTimestamp()
+	lastRestartTime, err := r.GetLastRestartTimestamp()
 	if err != nil {
 		log.Errorf("Error reading file: %v", err)
 		return false
@@ -114,7 +114,6 @@ func (r *Rebooter) shouldRestart() bool {
 
 	// Get the current time and the time of the last restart
 	currentTime := time.Now()
-	lastRestartTime := time.Unix(lastRestartTimestamp, 0)
 
 	// Check if more than 24 hours have passed since the last restart
 	if currentTime.Sub(lastRestartTime) > r.RebootInterval {
