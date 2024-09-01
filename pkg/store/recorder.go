@@ -65,7 +65,7 @@ type OutageRecorder interface {
 	StartIncident() (*OutageEvent, error)
 	FinishIncident() error
 	GetMostRecentEvent() (*OutageEvent, error)
-	GetFinishedEvents() ([]string, [][]byte, error)
+	GetFinishedEvents() ([]string, []OutageEvent, error)
 	DeleteEventFile(eventFile string) error
 }
 
@@ -162,7 +162,7 @@ func (r *fileSystemRecorder) getEventsDir(dir string) (string, error) {
 	return absPath, nil
 }
 
-func (r *fileSystemRecorder) GetFinishedEvents() ([]string, [][]byte, error) {
+func (r *fileSystemRecorder) GetFinishedEvents() ([]string, []OutageEvent, error) {
 	dir, err := r.getEventsDir(r.finishDir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting events directory: %v", err)
@@ -175,14 +175,20 @@ func (r *fileSystemRecorder) GetFinishedEvents() ([]string, [][]byte, error) {
 		return nil, nil, errors.Wrapf(err, "error reading finished events")
 	}
 
-	events := make([][]byte, len(files))
+	events := make([]OutageEvent, len(files))
 	fileNames := make([]string, len(files))
 	for i, file := range files {
 		eventBytes, err := os.ReadFile(filepath.Join(dir, file.Name()))
 		if err != nil {
 			return nil, nil, fmt.Errorf("error reading event file: %v", err)
 		}
-		events[i] = eventBytes
+		var event OutageEvent
+		err = json.Unmarshal(eventBytes, &event)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error parsing event json: %v", err)
+		}
+
+		events[i] = event
 		fileNames[i] = file.Name()
 	}
 

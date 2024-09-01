@@ -63,9 +63,9 @@ func main() {
 		panic("can't initialize new filesystem recorder")
 	}
 
-	angosturaPublisher := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
+	publisher := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
 
-	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, angosturaPublisher)
+	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, publisher)
 	defer syncManager.Close()
 	go syncManager.Run(context.Background())
 
@@ -98,7 +98,7 @@ func main() {
 		}
 	}
 
-	mainLoop(upsManager, event, eventsRecorder, angosturaPublisher, config)
+	mainLoop(upsManager, event, eventsRecorder, publisher, config)
 	if rebooter != nil {
 		rebooter.Stop()
 	}
@@ -116,7 +116,7 @@ type DeviceEvent struct {
 func mainLoop(upsManager *ups.UPSManager,
 	event *store.OutageEvent,
 	eventsRecorder store.OutageRecorder,
-	angosturaPublisher *store.AngosturaUploader,
+	publisher store.Publisher,
 	config Config) {
 
 	ticker := time.NewTicker(config.TickerDuration)
@@ -130,7 +130,7 @@ func mainLoop(upsManager *ups.UPSManager,
 		"monitor-id:" + config.MonitorID,
 	}
 
-	probeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
+	probeTime := publishProbe(publisher, config.MonitorID, false)
 	lastProbeTime := time.Now()
 	// Make sure that we log info the first time, after that only one log entry per hour.
 	// This is to not span the logs.
@@ -190,7 +190,7 @@ func mainLoop(upsManager *ups.UPSManager,
 			}
 
 			if time.Since(lastProbeTime) >= 4*time.Hour {
-				newProbeTime := publishProbe(angosturaPublisher, config.MonitorID, false)
+				newProbeTime := publishProbe(publisher, config.MonitorID, false)
 				if !newProbeTime.IsZero() {
 					lastProbeTime = newProbeTime
 				}
@@ -213,7 +213,7 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 }
 
-func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string, restart bool) time.Time {
+func publishProbe(publisher store.Publisher, deviceId string, restart bool) time.Time {
 	event := struct {
 		DeviceID string `json:"device_id"`
 		Restart  bool   `json:"restart"`
@@ -226,7 +226,7 @@ func publishProbe(angosturaPublisher *store.AngosturaUploader, deviceId string, 
 	if err != nil {
 		panic("Failed to serialized event json")
 	}
-	err = angosturaPublisher.Publish("power_outage_probe", jsonData)
+	err = publisher.Publish("power_outage_probe", jsonData)
 	if err != nil {
 		log.Errorf("failed to publish probe event to angostura: %v", err)
 		return time.Time{}

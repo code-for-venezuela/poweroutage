@@ -2,16 +2,22 @@ package store
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
+type Publisher interface {
+	Publish(eventType string, payload []byte) error
+	PublishOutageEvent(event OutageEvent) error
+}
+
 type AngosturaUploader struct {
 	Endpoint string
 }
 
-func NewAngosturaPubliser(endpoint string) *AngosturaUploader {
+func NewAngosturaPubliser(endpoint string) Publisher {
 	return &AngosturaUploader{Endpoint: endpoint}
 }
 
@@ -24,4 +30,12 @@ func (uploader *AngosturaUploader) Publish(eventType string, payload []byte) err
 	}
 	resp.Body.Close()
 	return nil
+}
+
+func (uploader *AngosturaUploader) PublishOutageEvent(event OutageEvent) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	return uploader.Publish("power_outage_incident", payload)
 }
