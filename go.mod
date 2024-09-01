@@ -4,7 +4,10 @@ go 1.17
 
 require github.com/pusher/pusher-http-go/v5 v5.1.1
 
-require github.com/pmezard/go-difflib v1.0.0 // indirect
+require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+)
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
@@ -17,6 +20,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.12.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

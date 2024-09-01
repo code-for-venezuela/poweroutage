@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -63,7 +64,16 @@ func main() {
 		panic("can't initialize new filesystem recorder")
 	}
 
-	publisher := store.NewAngosturaPubliser("https://us-central1-event-pipeline.cloudfunctions.net/prod-angosturagate")
+	dsn := os.Getenv("MYSQL_DSN")
+	if dsn == "" {
+		fmt.Errorf("MYSQL_DSN environment variable is not set")
+		return
+	}
+	publisher, err := store.NewMySQLPublisher(dsn)
+	if err != nil {
+		fmt.Printf("Error creating MySQLPublisher: %v\n", err)
+		return
+	}
 
 	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, publisher)
 	defer syncManager.Close()
