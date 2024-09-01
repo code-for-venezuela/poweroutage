@@ -1,6 +1,6 @@
 module github.com/code-for-venezuela/poweroutage
 
-go 1.17
+go 1.18
 
 require github.com/pusher/pusher-http-go/v5 v5.1.1
 
