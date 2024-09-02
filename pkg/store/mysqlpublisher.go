@@ -17,7 +17,6 @@ func NewMySQLPublisher(dsn string) (*MySQLPublisher, error) {
 		return nil, err
 	}
 
-	// Optionally, ping the database to ensure the connection is established
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -25,8 +24,8 @@ func NewMySQLPublisher(dsn string) (*MySQLPublisher, error) {
 	return &MySQLPublisher{DB: db}, nil
 }
 
-func (publisher *MySQLPublisher) Publish(eventType string, payload []byte) error {
-	_, err := publisher.DB.Exec(
+func (p *MySQLPublisher) Publish(eventType string, payload []byte) error {
+	_, err := p.DB.Exec(
 		"INSERT INTO Event (event_type, payload) VALUES (?, ?)",
 		eventType, payload,
 	)
@@ -36,8 +35,8 @@ func (publisher *MySQLPublisher) Publish(eventType string, payload []byte) error
 	return nil
 }
 
-func (publisher *MySQLPublisher) PublishOutageEvent(event OutageEvent) error {
-	_, err := publisher.DB.Exec(
+func (p *MySQLPublisher) PublishOutageEvent(event OutageEvent) error {
+	_, err := p.DB.Exec(
 		"INSERT INTO OutageEvent (id, status, start_time, end_time, device_id) VALUES (?, ?, ?, ?, ?)",
 		event.ID, event.Status, event.StartTime, event.EndTime, event.DeviceId,
 	)
@@ -45,4 +44,8 @@ func (publisher *MySQLPublisher) PublishOutageEvent(event OutageEvent) error {
 		return fmt.Errorf("failed to publish outage event: %v", err)
 	}
 	return nil
+}
+
+func (p *MySQLPublisher) Close() error {
+	return p.DB.Close()
 }

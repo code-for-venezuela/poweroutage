@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	balenarerebooter "github.com/code-for-venezuela/poweroutage/pkg/balenarebooter"
+	"github.com/code-for-venezuela/poweroutage/pkg/eventsreader"
 	"github.com/code-for-venezuela/poweroutage/pkg/eventsyncer"
 	"github.com/code-for-venezuela/poweroutage/pkg/store"
 	"github.com/code-for-venezuela/poweroutage/pkg/ups"
@@ -74,6 +76,7 @@ func main() {
 		fmt.Printf("Error creating MySQLPublisher: %v\n", err)
 		return
 	}
+	defer publisher.Close()
 
 	syncManager := eventsyncer.NewEventSyncer(1*time.Minute, eventsRecorder, publisher)
 	defer syncManager.Close()
@@ -106,12 +109,10 @@ func main() {
 		if err != nil {
 			log.Panicf("Error initializing rebooter: %v", err)
 		}
+		defer rebooter.Stop()
 	}
 
 	mainLoop(upsManager, event, eventsRecorder, publisher, config)
-	if rebooter != nil {
-		rebooter.Stop()
-	}
 	log.Infof("Program is exiting")
 }
 
@@ -140,16 +141,22 @@ func mainLoop(upsManager *ups.UPSManager,
 		"monitor-id:" + config.MonitorID,
 	}
 
-	probeTime := publishProbe(publisher, config.MonitorID, false)
-	lastProbeTime := time.Now()
 	// Make sure that we log info the first time, after that only one log entry per hour.
-	// This is to not span the logs.
-	lastLog := time.Now().Add(-2 * time.Hour)
-	if probeTime.IsZero() {
-		log.Errorf("failed to published to angostura on start")
-	} else {
-		lastProbeTime = probeTime
+	// This is to not spam the logs.
+
+	if events, err := fetchLastDayProbes(config.MonitorID); err != nil {
+		eventCount := eventsreader.CountEventsInDuration(events, 1*time.Hour)
+		if eventCount >= 5 {
+			if events[0].Status != "crashing" {
+				publishProbe(publisher, config.MonitorID, "crashing")
+			}
+			log.Errorf("This device seems to be in a crash loop. There have been %v restarts in the last hour", eventCount)
+			return
+		}
+
 	}
+
+	lastProbeTime, lastLog := publishInitialProbe(publisher, config)
 
 	for {
 		// Let's initialize a probe timer to send keep alives to angostura
@@ -200,7 +207,7 @@ func mainLoop(upsManager *ups.UPSManager,
 			}
 
 			if time.Since(lastProbeTime) >= 4*time.Hour {
-				newProbeTime := publishProbe(publisher, config.MonitorID, false)
+				newProbeTime := publishProbe(publisher, config.MonitorID, "healthy")
 				if !newProbeTime.IsZero() {
 					lastProbeTime = newProbeTime
 				}
@@ -223,13 +230,51 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 }
 
-func publishProbe(publisher store.Publisher, deviceId string, restart bool) time.Time {
-	event := struct {
-		DeviceID string `json:"device_id"`
-		Restart  bool   `json:"restart"`
-	}{
+func fetchLastDayProbes(deviceId string) ([]eventsreader.Event, error) {
+	dsn := os.Getenv("MYSQL_DSN")
+	if dsn == "" {
+		return nil, fmt.Errorf("MYSQL_DSN is not set")
+	}
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+	events, err := eventsreader.GetEventsForDevice(db, deviceId)
+	if err != nil {
+		return nil, err
+	}
+	if len(events) == 0 {
+		return nil, fmt.Errorf("No events for deviceID: %v", deviceId)
+	}
+
+	return events, nil
+}
+
+func publishInitialProbe(publisher store.Publisher, config Config) (time.Time, time.Time) {
+	probeTime := publishProbe(publisher, config.MonitorID, "restarting")
+	lastProbeTime := time.Now()
+
+	lastLog := time.Now().Add(-2 * time.Hour)
+	if probeTime.IsZero() {
+		log.Errorf("failed to published to angostura on start")
+	} else {
+		lastProbeTime = probeTime
+	}
+	return lastProbeTime, lastLog
+}
+
+func publishProbe(publisher store.Publisher, deviceId, status string) time.Time {
+	event := eventsreader.Event{
 		DeviceID: deviceId,
-		Restart:  restart,
+		SentAt:   time.Now(),
+		Status:   status,
 	}
 	// Serialize the struct to JSON
 	jsonData, err := json.Marshal(event)

@@ -34,3 +34,7 @@ func (uploader *AngosturaUploader) PublishOutageEvent(event OutageEvent) error {
 	}
 	return uploader.Publish("power_outage_incident", payload)
 }
+
+func (uploader *AngosturaUploader) Close() error {
+	return nil
+}
