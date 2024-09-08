@@ -24,8 +24,8 @@ func GetEventsForDevice(db *sql.DB, deviceID string) ([]Event, error) {
 	query := `
 		SELECT payload
 		FROM Event
-		WHERE createdAt >= ?
-		AND eventType = 'power_outage_probe'
+		WHERE created_at >= ?
+		AND event_type = 'power_outage_probe'
 		ORDER by createdAt desc
 	`
 
