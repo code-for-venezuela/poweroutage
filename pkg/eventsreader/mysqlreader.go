@@ -26,7 +26,7 @@ func GetEventsForDevice(db *sql.DB, deviceID string) ([]Event, error) {
 		FROM Event
 		WHERE created_at >= ?
 		AND event_type = 'power_outage_probe'
-		ORDER by createdAt desc
+		ORDER by created_at desc
 	`
 
 	rows, err := db.Query(query, twoDaysAgo)
