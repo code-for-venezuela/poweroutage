@@ -144,8 +144,10 @@ func mainLoop(upsManager *ups.UPSManager,
 	// Make sure that we log info the first time, after that only one log entry per hour.
 	// This is to not spam the logs.
 
-	if events, err := fetchLastDayProbes(config.MonitorID); err != nil {
+	events, err := fetchLastDayProbes(config.MonitorID)
+	if err == nil {
 		eventCount := eventsreader.CountEventsInDuration(events, 1*time.Hour)
+		log.Infof("Found %v events for monitor:", eventCount, config.MonitorID)
 		if eventCount >= 5 {
 			if events[0].Status != "crashing" {
 				publishProbe(publisher, config.MonitorID, "crashing")
@@ -153,7 +155,10 @@ func mainLoop(upsManager *ups.UPSManager,
 			log.Errorf("This device seems to be in a crash loop. There have been %v restarts in the last hour", eventCount)
 			return
 		}
+	}
 
+	if err != nil {
+		log.Warnf("Warning, couldn't fetch events to get probe status. Failed to read from db")
 	}
 
 	lastProbeTime, lastLog := publishInitialProbe(publisher, config)
@@ -251,7 +256,7 @@ func fetchLastDayProbes(deviceId string) ([]eventsreader.Event, error) {
 		return nil, err
 	}
 	if len(events) == 0 {
-		return nil, fmt.Errorf("No events for deviceID: %v", deviceId)
+		return []eventsreader.Event{}, nil
 	}
 
 	return events, nil
