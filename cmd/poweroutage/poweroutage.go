@@ -147,13 +147,12 @@ func mainLoop(upsManager *ups.UPSManager,
 	events, err := fetchLastDayProbes(config.MonitorID)
 	if err == nil {
 		eventCount := eventsreader.CountEventsInDuration(events, 1*time.Hour)
-		log.Infof("Found %v events for monitor:", eventCount, config.MonitorID)
-		if eventCount >= 5 {
+		log.Infof("Found %v events for monitor: %v", eventCount, config.MonitorID)
+		if eventCount >= 3 {
 			if events[0].Status != "crashing" {
 				publishProbe(publisher, config.MonitorID, "crashing")
 			}
-			log.Errorf("This device seems to be in a crash loop. There have been %v restarts in the last hour", eventCount)
-			return
+			log.Panicf("This device seems to be in a crash loop. There have been %v restarts in the last hour", eventCount)
 		}
 	}
 
