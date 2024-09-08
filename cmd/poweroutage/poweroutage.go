@@ -158,7 +158,7 @@ func mainLoop(upsManager *ups.UPSManager,
 	}
 
 	if err != nil {
-		log.Warnf("Warning, couldn't fetch events to get probe status. Failed to read from db")
+		log.Warnf("Warning, couldn't fetch events to get probe status. Failed to read from db: %v", err)
 	}
 
 	lastProbeTime, lastLog := publishInitialProbe(publisher, config)
